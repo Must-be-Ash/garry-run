@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 
 const GRAVITY = 0.6;
 const JUMP_FORCE = -15;
+const FLOOR_HEIGHT = 50;
 const INITIAL_SPEED = 3;
 const SPEED_INCREASE_INTERVAL = 10000; // 10 seconds
 
@@ -114,25 +115,25 @@ export default function Home() {
         ctx.fillStyle = '#333333';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Update player position and apply gravity
-  playerRef.current.velocityY += GRAVITY;
-  playerRef.current.y += playerRef.current.velocityY;
+        // Update player position and apply gravity
+        playerRef.current.velocityY += GRAVITY;
+        playerRef.current.y += playerRef.current.velocityY;
 
-  // Keep player on the floor and reset jumps
-  if (playerRef.current.y > canvas.height - playerSize) {
-    playerRef.current.y = canvas.height - playerSize;
-    playerRef.current.velocityY = 0;
-    playerRef.current.jumps = 0;
-  }
+        // Keep player on the floor and reset jumps
+        if (playerRef.current.y > canvas.height - FLOOR_HEIGHT - 50) {
+          playerRef.current.y = canvas.height - FLOOR_HEIGHT - 50;
+          playerRef.current.velocityY = 0;
+          playerRef.current.jumps = 0;
+        }
 
-  // Draw player in a circle
-  const playerSize = Math.min(50, canvas.width / 16);
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(playerRef.current.x + playerSize/2, playerRef.current.y + playerSize/2, playerSize/2, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.drawImage(player, playerRef.current.x, playerRef.current.y, playerSize, playerSize);
-  ctx.restore();
+        // Draw player in a circle
+        const playerSize = Math.min(50, canvas.width / 16);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(playerRef.current.x + playerSize/2, playerRef.current.y + playerSize/2, playerSize/2, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(player, playerRef.current.x, playerRef.current.y, playerSize, playerSize);
+        ctx.restore();
 
         // Draw floor
         ctx.fillStyle = '#000000';
@@ -209,8 +210,7 @@ export default function Home() {
     }
     setGameStarted(true);
     setScore(0);
-    const playerSize = Math.min(50, canvasSize.width / 16);
-    playerRef.current = { x: 50, y: canvasSize.height - playerSize, velocityY: 0, jumps: 0 };
+    playerRef.current = { x: 50, y: canvasSize.height - FLOOR_HEIGHT - 50, velocityY: 0, jumps: 0 };
     coinsRef.current = [];
     barriersRef.current = [];
     gameSpeedRef.current = INITIAL_SPEED;
@@ -236,8 +236,7 @@ export default function Home() {
   }, [playerName, score]);
 
   const jump = () => {
-    const playerSize = Math.min(50, canvasSize.width / 16);
-    const isOnGround = playerRef.current.y >= canvasSize.height - playerSize;
+    const isOnGround = playerRef.current.y >= canvasSize.height - FLOOR_HEIGHT - 50;
     
     if (isOnGround || playerRef.current.jumps < 2) {
       playerRef.current.velocityY = JUMP_FORCE;
@@ -249,42 +248,36 @@ export default function Home() {
     jump();
   };
 
-const spawnBarrier = () => {
-  const difficulty = Math.min(gameTimeRef.current / 120000, 0.7); // Max difficulty after 2 minutes
-  const maxHeight = canvasSize.height * 0.7; // Maximum 70% of canvas height
-  const minHeight = canvasSize.height * 0.2; // Minimum 20% of canvas height
-  const height = minHeight + (maxHeight - minHeight) * difficulty * Math.random();
-  barriersRef.current.push({
-    x: canvasSize.width,
-    y: canvasSize.height - height,
-    width: Math.min(30, canvasSize.width / 26),
-    height: height
-  });
-};
+  const spawnBarrier = () => {
+    const difficulty = Math.min(gameTimeRef.current / 120000, 0.7); // Max difficulty after 2 minutes
+    const height = 60 + Math.random() * 60 * difficulty; // Height increases with difficulty
+    barriersRef.current.push({
+      x: canvasSize.width,
+      y: canvasSize.height - FLOOR_HEIGHT - height,
+      width: Math.min(30, canvasSize.width / 26),
+      height: height
+    });
+  };
 
-const spawnCoin = () => {
-  const coinSize = Math.min(30, canvasSize.width / 26);
-  coinsRef.current.push({
-    x: canvasSize.width,
-    y: Math.random() * (canvasSize.height - coinSize * 2) + coinSize // Ensure coins are not spawned too close to the bottom
-  });
-};
+  const spawnCoin = () => {
+    coinsRef.current.push({
+      x: canvasSize.width,
+      y: canvasSize.height - FLOOR_HEIGHT - 30 - Math.random() * 100
+    });
+  };
 
-// Update the checkCollision function
-const checkCollision = () => {
-  const playerSize = Math.min(50, canvasSize.width / 16);
-  return barriersRef.current.some((barrier) => 
-    playerRef.current.x + playerSize > barrier.x &&
-    playerRef.current.x < barrier.x + barrier.width &&
-    playerRef.current.y + playerSize > barrier.y &&
-    playerRef.current.y < barrier.y + barrier.height
-  );
-};
+  const checkCollision = () => {
+    return barriersRef.current.some((barrier) => 
+      playerRef.current.x + 40 > barrier.x &&
+      playerRef.current.x < barrier.x + barrier.width &&
+      playerRef.current.y + 40 > barrier.y &&
+      playerRef.current.y < barrier.y + barrier.height
+    );
+  };
 
   const formatTwitterHandle = (handle) => {
     return handle.startsWith('@') ? handle.slice(1) : handle;
   };
-
   return (
     <div className={styles.container}>
       <Head>
