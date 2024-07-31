@@ -7,7 +7,6 @@ import { supabase } from '../lib/supabase';
 
 const GRAVITY = 0.6;
 const JUMP_FORCE = -15;
-const FLOOR_HEIGHT = 50;
 const INITIAL_SPEED = 3;
 const SPEED_INCREASE_INTERVAL = 10000; // 10 seconds
 
@@ -18,6 +17,7 @@ export default function Home() {
   const [playerName, setPlayerName] = useState('');
   const [gameSpeed, setGameSpeed] = useState(INITIAL_SPEED);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 400 });
+  const [isLandscape, setIsLandscape] = useState(true);
   const canvasRef = useRef(null);
   const playerRef = useRef({ x: 50, y: 300, velocityY: 0, jumps: 0 });
   const coinsRef = useRef([]);
@@ -32,10 +32,23 @@ export default function Home() {
       setCanvasSize({ width, height });
     };
 
-    handleResize();
-    window.addEventListener('resize', handleResize);
+    const checkOrientation = () => {
+      if (typeof window !== 'undefined') {
+        setIsLandscape(window.innerWidth > window.innerHeight);
+      }
+    };
 
-    return () => window.removeEventListener('resize', handleResize);
+    handleResize();
+    checkOrientation();
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
   }, []);
 
   const fetchHighScores = async () => {
@@ -82,7 +95,7 @@ export default function Home() {
   }, [gameStarted]);
 
   useEffect(() => {
-    if (gameStarted) {
+    if (gameStarted && isLandscape) {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       let animationFrameId;
@@ -101,25 +114,25 @@ export default function Home() {
         ctx.fillStyle = '#333333';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Update player position and apply gravity
-        playerRef.current.velocityY += GRAVITY;
-        playerRef.current.y += playerRef.current.velocityY;
+  // Update player position and apply gravity
+  playerRef.current.velocityY += GRAVITY;
+  playerRef.current.y += playerRef.current.velocityY;
 
-        // Keep player on the floor and reset jumps
-        if (playerRef.current.y > canvas.height - FLOOR_HEIGHT - 50) {
-          playerRef.current.y = canvas.height - FLOOR_HEIGHT - 50;
-          playerRef.current.velocityY = 0;
-          playerRef.current.jumps = 0;
-        }
+  // Keep player on the floor and reset jumps
+  if (playerRef.current.y > canvas.height - playerSize) {
+    playerRef.current.y = canvas.height - playerSize;
+    playerRef.current.velocityY = 0;
+    playerRef.current.jumps = 0;
+  }
 
-        // Draw player in a circle
-        const playerSize = Math.min(50, canvas.width / 16);
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(playerRef.current.x + playerSize/2, playerRef.current.y + playerSize/2, playerSize/2, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(player, playerRef.current.x, playerRef.current.y, playerSize, playerSize);
-        ctx.restore();
+  // Draw player in a circle
+  const playerSize = Math.min(50, canvas.width / 16);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(playerRef.current.x + playerSize/2, playerRef.current.y + playerSize/2, playerSize/2, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(player, playerRef.current.x, playerRef.current.y, playerSize, playerSize);
+  ctx.restore();
 
         // Draw floor
         ctx.fillStyle = '#000000';
@@ -187,7 +200,7 @@ export default function Home() {
         cancelAnimationFrame(animationFrameId);
       };
     }
-  }, [gameStarted, score, canvasSize]);
+  }, [gameStarted, score, canvasSize, isLandscape]);
 
   const startGame = () => {
     if (playerName.trim() === '') {
@@ -196,7 +209,8 @@ export default function Home() {
     }
     setGameStarted(true);
     setScore(0);
-    playerRef.current = { x: 50, y: canvasSize.height - FLOOR_HEIGHT - 50, velocityY: 0, jumps: 0 };
+    const playerSize = Math.min(50, canvasSize.width / 16);
+    playerRef.current = { x: 50, y: canvasSize.height - playerSize, velocityY: 0, jumps: 0 };
     coinsRef.current = [];
     barriersRef.current = [];
     gameSpeedRef.current = INITIAL_SPEED;
@@ -222,7 +236,8 @@ export default function Home() {
   }, [playerName, score]);
 
   const jump = () => {
-    const isOnGround = playerRef.current.y >= canvasSize.height - FLOOR_HEIGHT - 50;
+    const playerSize = Math.min(50, canvasSize.width / 16);
+    const isOnGround = playerRef.current.y >= canvasSize.height - playerSize;
     
     if (isOnGround || playerRef.current.jumps < 2) {
       playerRef.current.velocityY = JUMP_FORCE;
@@ -234,32 +249,37 @@ export default function Home() {
     jump();
   };
 
-  const spawnBarrier = () => {
-    const difficulty = Math.min(gameTimeRef.current / 120000, 0.7); // Max difficulty after 2 minutes
-    const height = 60 + Math.random() * 60 * difficulty; // Height increases with difficulty
-    barriersRef.current.push({
-      x: canvasSize.width,
-      y: canvasSize.height - FLOOR_HEIGHT - height,
-      width: Math.min(30, canvasSize.width / 26),
-      height: height
-    });
-  };
+const spawnBarrier = () => {
+  const difficulty = Math.min(gameTimeRef.current / 120000, 0.7); // Max difficulty after 2 minutes
+  const maxHeight = canvasSize.height * 0.7; // Maximum 70% of canvas height
+  const minHeight = canvasSize.height * 0.2; // Minimum 20% of canvas height
+  const height = minHeight + (maxHeight - minHeight) * difficulty * Math.random();
+  barriersRef.current.push({
+    x: canvasSize.width,
+    y: canvasSize.height - height,
+    width: Math.min(30, canvasSize.width / 26),
+    height: height
+  });
+};
 
-  const spawnCoin = () => {
-    coinsRef.current.push({
-      x: canvasSize.width,
-      y: canvasSize.height - FLOOR_HEIGHT - 30 - Math.random() * 100
-    });
-  };
+const spawnCoin = () => {
+  const coinSize = Math.min(30, canvasSize.width / 26);
+  coinsRef.current.push({
+    x: canvasSize.width,
+    y: Math.random() * (canvasSize.height - coinSize * 2) + coinSize // Ensure coins are not spawned too close to the bottom
+  });
+};
 
-  const checkCollision = () => {
-    return barriersRef.current.some((barrier) => 
-      playerRef.current.x + 40 > barrier.x &&
-      playerRef.current.x < barrier.x + barrier.width &&
-      playerRef.current.y + 40 > barrier.y &&
-      playerRef.current.y < barrier.y + barrier.height
-    );
-  };
+// Update the checkCollision function
+const checkCollision = () => {
+  const playerSize = Math.min(50, canvasSize.width / 16);
+  return barriersRef.current.some((barrier) => 
+    playerRef.current.x + playerSize > barrier.x &&
+    playerRef.current.x < barrier.x + barrier.width &&
+    playerRef.current.y + playerSize > barrier.y &&
+    playerRef.current.y < barrier.y + barrier.height
+  );
+};
 
   const formatTwitterHandle = (handle) => {
     return handle.startsWith('@') ? handle.slice(1) : handle;
@@ -272,61 +292,70 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </Head>
-
+  
       <main className={styles.main}>
         <h1 className={styles.title}>Garry Run</h1>
-
-        {!gameStarted ? (
-          <div className={styles.startContainer}>
-            <NextImage 
-              src="/garry.png" 
-              alt="Garry" 
-              width={200} 
-              height={200} 
-              className={styles.garryImage}
-            />
-            <input
-              type="text"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Enter your Twitter handle"
-              className={styles.input}
-            />
-            <button onClick={startGame} className={styles.button}>
-              Start Game
-            </button>
+  
+        {!isLandscape && gameStarted ? (
+          <div className={styles.orientationPrompt}>
+            <p>Please rotate your device to landscape mode to play the game.</p>
+            <div className={styles.rotateIcon}>↻</div>
           </div>
         ) : (
-          <div
-            tabIndex={0}
-            onTouchStart={handleTouchStart}
-            className={styles.gameArea}
-          >
-            <canvas ref={canvasRef} width={canvasSize.width} height={canvasSize.height} />
-            <div>Press Space to jump or touch the screen on mobile</div>
-          </div>
+          <>
+            {!gameStarted ? (
+              <div className={styles.startContainer}>
+                <NextImage 
+                  src="/garry.png" 
+                  alt="Garry" 
+                  width={200} 
+                  height={200} 
+                  className={styles.garryImage}
+                />
+                <input
+                  type="text"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  placeholder="Enter your Twitter handle"
+                  className={styles.input}
+                />
+                <button onClick={startGame} className={styles.button}>
+                  Start Game
+                </button>
+              </div>
+            ) : (
+              <div
+                tabIndex={0}
+                onTouchStart={handleTouchStart}
+                className={styles.gameArea}
+              >
+                <canvas ref={canvasRef} width={canvasSize.width} height={canvasSize.height} />
+                <div>Press Space to jump or touch the screen on mobile</div>
+              </div>
+            )}
+  
+            <div className={styles.highScores}>
+              <h2>High Scores</h2>
+              <div className={styles.scoreList}>
+                <ul>
+                  {highScores.map((entry, index) => (
+                    <li key={index}>
+                      <a 
+                        href={`https://x.com/${formatTwitterHandle(entry.name)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {entry.name}
+                      </a>: {entry.score}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </>
         )}
-
-        <div className={styles.highScores}>
-          <h2>High Scores</h2>
-          <div className={styles.scoreList}>
-            <ul>
-              {highScores.map((entry, index) => (
-                <li key={index}>
-                  <a 
-                    href={`https://x.com/${formatTwitterHandle(entry.name)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {entry.name}
-                  </a>: {entry.score}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
       </main>
-
+  
       <footer className={styles.footer}>
         Made with Claude by <a href="https://x.com/Must_be_Ash" target="_blank" rel="noopener noreferrer">@must_be_Ash</a>
       </footer>
