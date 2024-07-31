@@ -19,7 +19,7 @@
 }
 
 .scoreList {
-  max-height: 300px;
+  max-height: 150px;
   overflow-y: auto;
   border: 1px solid #eaeaea;
   padding: 10px;
