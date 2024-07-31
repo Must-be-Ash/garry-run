@@ -17,12 +17,26 @@ export default function Home() {
   const [highScores, setHighScores] = useState([]);
   const [playerName, setPlayerName] = useState('');
   const [gameSpeed, setGameSpeed] = useState(INITIAL_SPEED);
+  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 400 });
   const canvasRef = useRef(null);
   const playerRef = useRef({ x: 50, y: 300, velocityY: 0, jumps: 0 });
   const coinsRef = useRef([]);
   const barriersRef = useRef([]);
   const gameSpeedRef = useRef(INITIAL_SPEED);
   const gameTimeRef = useRef(0);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = Math.min(800, window.innerWidth - 20);
+      const height = width / 2;
+      setCanvasSize({ width, height });
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const fetchHighScores = async () => {
     console.log('Fetching high scores...');
@@ -37,11 +51,6 @@ export default function Home() {
     }
     if (error) console.error('Error fetching high scores:', error);
   };
-
-  const formatTwitterHandle = (handle) => {
-    return handle.startsWith('@') ? handle.slice(1) : handle;
-  };
-
 
   useEffect(() => {
     fetchHighScores();
@@ -104,11 +113,12 @@ export default function Home() {
         }
 
         // Draw player in a circle
+        const playerSize = Math.min(50, canvas.width / 16);
         ctx.save();
         ctx.beginPath();
-        ctx.arc(playerRef.current.x + 25, playerRef.current.y + 25, 25, 0, Math.PI * 2);
+        ctx.arc(playerRef.current.x + playerSize/2, playerRef.current.y + playerSize/2, playerSize/2, 0, Math.PI * 2);
         ctx.clip();
-        ctx.drawImage(player, playerRef.current.x, playerRef.current.y, 50, 50);
+        ctx.drawImage(player, playerRef.current.x, playerRef.current.y, playerSize, playerSize);
         ctx.restore();
 
         // Draw floor
@@ -116,13 +126,15 @@ export default function Home() {
         ctx.fillRect(0, canvas.height - FLOOR_HEIGHT, canvas.width, FLOOR_HEIGHT);
 
         // Draw coins
+        const coinSize = Math.min(30, canvas.width / 26);
         coinsRef.current.forEach((coinPos) => {
-          ctx.drawImage(coin, coinPos.x, coinPos.y, 30, 30);
+          ctx.drawImage(coin, coinPos.x, coinPos.y, coinSize, coinSize);
         });
 
         // Draw barriers
+        const barrierWidth = Math.min(30, canvas.width / 26);
         barriersRef.current.forEach((barrierPos) => {
-          ctx.drawImage(barrier, barrierPos.x, barrierPos.y, barrierPos.width, barrierPos.height);
+          ctx.drawImage(barrier, barrierPos.x, barrierPos.y, barrierWidth, barrierPos.height);
         });
 
         // Move barriers and coins
@@ -162,7 +174,7 @@ export default function Home() {
 
         // Draw score and speed
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 24px Arial';
+        ctx.font = `bold ${Math.max(16, canvas.width / 50)}px Arial`;
         ctx.fillText(`Score: ${score}`, 10, 30);
         ctx.fillText(`Speed: ${gameSpeedRef.current.toFixed(1)}`, canvas.width - 120, 30);
 
@@ -175,16 +187,16 @@ export default function Home() {
         cancelAnimationFrame(animationFrameId);
       };
     }
-  }, [gameStarted, score]);
+  }, [gameStarted, score, canvasSize]);
 
   const startGame = () => {
     if (playerName.trim() === '') {
-      alert('Please enter your name before starting the game.');
+      alert('Please enter your Twitter handle before starting the game.');
       return;
     }
     setGameStarted(true);
     setScore(0);
-    playerRef.current = { x: 50, y: 300, velocityY: 0, jumps: 0 };
+    playerRef.current = { x: 50, y: canvasSize.height - FLOOR_HEIGHT - 50, velocityY: 0, jumps: 0 };
     coinsRef.current = [];
     barriersRef.current = [];
     gameSpeedRef.current = INITIAL_SPEED;
@@ -210,7 +222,7 @@ export default function Home() {
   }, [playerName, score]);
 
   const jump = () => {
-    const isOnGround = playerRef.current.y >= canvasRef.current.height - FLOOR_HEIGHT - 50;
+    const isOnGround = playerRef.current.y >= canvasSize.height - FLOOR_HEIGHT - 50;
     
     if (isOnGround || playerRef.current.jumps < 2) {
       playerRef.current.velocityY = JUMP_FORCE;
@@ -223,22 +235,20 @@ export default function Home() {
   };
 
   const spawnBarrier = () => {
-    const canvas = canvasRef.current;
     const difficulty = Math.min(gameTimeRef.current / 120000, 0.7); // Max difficulty after 2 minutes
     const height = 60 + Math.random() * 60 * difficulty; // Height increases with difficulty
     barriersRef.current.push({
-      x: canvas.width,
-      y: canvas.height - FLOOR_HEIGHT - height,
-      width: 30,
+      x: canvasSize.width,
+      y: canvasSize.height - FLOOR_HEIGHT - height,
+      width: Math.min(30, canvasSize.width / 26),
       height: height
     });
   };
 
   const spawnCoin = () => {
-    const canvas = canvasRef.current;
     coinsRef.current.push({
-      x: canvas.width,
-      y: canvas.height - FLOOR_HEIGHT - 30 - Math.random() * 100
+      x: canvasSize.width,
+      y: canvasSize.height - FLOOR_HEIGHT - 30 - Math.random() * 100
     });
   };
 
@@ -249,6 +259,10 @@ export default function Home() {
       playerRef.current.y + 40 > barrier.y &&
       playerRef.current.y < barrier.y + barrier.height
     );
+  };
+
+  const formatTwitterHandle = (handle) => {
+    return handle.startsWith('@') ? handle.slice(1) : handle;
   };
 
   return (
@@ -288,7 +302,7 @@ export default function Home() {
             onTouchStart={handleTouchStart}
             className={styles.gameArea}
           >
-            <canvas ref={canvasRef} width={800} height={400} />
+            <canvas ref={canvasRef} width={canvasSize.width} height={canvasSize.height} />
             <div>Press Space to jump or touch the screen on mobile</div>
           </div>
         )}
