@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import styles from '../styles/Home.module.css';
 import confetti from 'canvas-confetti';
+import { supabase } from '../lib/supabase';
 
 const GRAVITY = 0.6;
 const JUMP_FORCE = -15;
@@ -23,11 +24,18 @@ export default function Home() {
   const gameTimeRef = useRef(0);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedScores = JSON.parse(localStorage.getItem('highScores') || '[]');
-      setHighScores(savedScores);
-    }
+    fetchHighScores();
   }, []);
+
+  const fetchHighScores = async () => {
+    const { data, error } = await supabase
+      .from('high_scores')
+      .select('*')
+      .order('score', { ascending: false })
+      .limit(5);
+    if (data) setHighScores(data);
+    if (error) console.error('Error fetching high scores:', error);
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -165,11 +173,13 @@ export default function Home() {
     console.log('Game Started');
   };
 
-  const endGame = () => {
+  const endGame = async () => {
     setGameStarted(false);
-    const newHighScores = [...highScores, { name: playerName, score }].sort((a, b) => b.score - a.score).slice(0, 5);
-    setHighScores(newHighScores);
-    localStorage.setItem('highScores', JSON.stringify(newHighScores));
+    const { data, error } = await supabase
+      .from('high_scores')
+      .insert({ name: playerName, score: score });
+    if (error) console.error('Error saving score:', error);
+    fetchHighScores();
     confetti();
     console.log('Game Ended. Final Score:', score);
   };
