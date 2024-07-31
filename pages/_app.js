@@ -1,5 +1,9 @@
-import "@/styles/globals.css";
+import dynamic from 'next/dynamic'
 
-export default function App({ Component, pageProps }) {
-  return <Component {...pageProps} />;
+const DynamicHome = dynamic(() => import('./index'), { ssr: false })
+
+function MyApp({ Component, pageProps }) {
+  return <DynamicHome {...pageProps} />
 }
+
+export default MyApp

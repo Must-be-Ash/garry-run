@@ -151,7 +151,7 @@ export default function Home() {
         cancelAnimationFrame(animationFrameId);
       };
     }
-  }, [gameStarted, score]);
+  }, [gameStarted, score, endGame]);
 
   const startGame = () => {
     if (playerName.trim() === '') {
