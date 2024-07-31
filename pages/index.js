@@ -1,8 +1,12 @@
+console.log('Starting to load index.js');
+
 import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import styles from '../styles/Home.module.css';
 import confetti from 'canvas-confetti';
 import { supabase } from '../lib/supabase';
+
+console.log('Imports completed');
 
 const GRAVITY = 0.6;
 const JUMP_FORCE = -15;
@@ -11,6 +15,8 @@ const INITIAL_SPEED = 3;
 const SPEED_INCREASE_INTERVAL = 10000; // 10 seconds
 
 export default function Home() {
+  console.log('Rendering Home component');
+
   const [gameStarted, setGameStarted] = useState(false);
   const [score, setScore] = useState(0);
   const [highScores, setHighScores] = useState([]);
@@ -26,26 +32,6 @@ export default function Home() {
   useEffect(() => {
     fetchHighScores();
   }, []);
-
-  const fetchHighScores = async () => {
-    console.log('Fetching high scores...');
-    try {
-      const { data, error } = await supabase
-        .from('high_scores')
-        .select('*')
-        .order('score', { ascending: false })
-        .limit(5);
-  
-      if (error) {
-        console.error('Error fetching high scores:', error);
-      } else {
-        console.log('High scores fetched:', data);
-        setHighScores(data);
-      }
-    } catch (err) {
-      console.error('Unexpected error fetching high scores:', err);
-    }
-  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -165,7 +151,7 @@ export default function Home() {
         cancelAnimationFrame(animationFrameId);
       };
     }
-  }, [gameStarted, score, endGame]); // Add endGame here
+  }, [gameStarted, score, endGame]);
 
   const startGame = () => {
     if (playerName.trim() === '') {
@@ -174,7 +160,12 @@ export default function Home() {
     }
     setGameStarted(true);
     setScore(0);
-    playerRef.current = { x: 50, y: 300, velocityY: 0, jumps: 0 };
+    playerRef.current = { 
+      x: 50, 
+      y: 300,
+      velocityY: 0, 
+      jumps: 0 
+    };
     coinsRef.current = [];
     barriersRef.current = [];
     gameSpeedRef.current = INITIAL_SPEED;
@@ -186,25 +177,45 @@ export default function Home() {
   const endGame = async () => {
     setGameStarted(false);
     console.log('Ending game. Final Score:', score);
-  
+
     try {
       const { data, error } = await supabase
         .from('high_scores')
         .insert({ name: playerName, score: score });
-  
+
       if (error) {
         console.error('Error saving score:', error);
       } else {
         console.log('Score saved successfully:', data);
       }
-  
+
       await fetchHighScores();
     } catch (err) {
       console.error('Unexpected error saving score:', err);
     }
-  
+
     confetti();
     console.log('Game Ended. Final Score:', score);
+  };
+
+  const fetchHighScores = async () => {
+    console.log('Fetching high scores...');
+    try {
+      const { data, error } = await supabase
+        .from('high_scores')
+        .select('*')
+        .order('score', { ascending: false })
+        .limit(5);
+
+      if (error) {
+        console.error('Error fetching high scores:', error);
+      } else {
+        console.log('High scores fetched:', data);
+        setHighScores(data);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching high scores:', err);
+    }
   };
 
   const jump = () => {
@@ -249,56 +260,61 @@ export default function Home() {
     );
   };
 
-  return (
-    <div className={styles.container}>
-      <Head>
-        <title>Garry Run</title>
-        <link rel="icon" href="/favicon.ico" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-      </Head>
+  try {
+    return (
+      <div className={styles.container}>
+        <Head>
+          <title>Garry Run</title>
+          <link rel="icon" href="/favicon.ico" />
+          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        </Head>
 
-      <main className={styles.main}>
-        <h1 className={styles.title}>Garry Run</h1>
+        <main className={styles.main}>
+          <h1 className={styles.title}>Garry Run</h1>
 
-        {!gameStarted ? (
-          <div>
-            <input
-              type="text"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Enter your name"
-              className={styles.input}
-            />
-            <button onClick={startGame} className={styles.button}>
-              Start Game
-            </button>
+          {!gameStarted ? (
+            <div>
+              <input
+                type="text"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                placeholder="Enter your name"
+                className={styles.input}
+              />
+              <button onClick={startGame} className={styles.button}>
+                Start Game
+              </button>
+            </div>
+          ) : (
+            <div
+              tabIndex={0}
+              onTouchStart={handleTouchStart}
+              className={styles.gameArea}
+            >
+              <canvas ref={canvasRef} width={800} height={400} />
+              <div>Press Space to jump or touch the screen on mobile</div>
+            </div>
+          )}
+
+          <div className={styles.highScores}>
+            <h2>High Scores</h2>
+            <ul>
+              {highScores.map((entry, index) => (
+                <li key={index}>
+                  {entry.name}: {entry.score}
+                </li>
+              ))}
+            </ul>
           </div>
-        ) : (
-          <div
-            tabIndex={0}
-            onTouchStart={handleTouchStart}
-            className={styles.gameArea}
-          >
-            <canvas ref={canvasRef} width={800} height={400} />
-            <div>Press Space to jump or touch the screen on mobile</div>
-          </div>
-        )}
+        </main>
 
-        <div className={styles.highScores}>
-          <h2>High Scores</h2>
-          <ul>
-            {highScores.map((entry, index) => (
-              <li key={index}>
-                {entry.name}: {entry.score}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </main>
-
-      <footer className={styles.footer}>
-        Made with Claude by <a href="https://x.com/Must_be_Ash" target="_blank" rel="noopener noreferrer">@must_be_Ash</a>
-      </footer>
-    </div>
-  );
+        <footer className={styles.footer}>
+          Made with Claude by <a href="https://x.com/Must_be_Ash" target="_blank" rel="noopener noreferrer">@must_be_Ash</a>
+        </footer>
+      </div>
+    );
+  } catch (error) {
+    console.error('Error rendering component:', error);
+    return <div>An error occurred. Please check the console for details.</div>;
+  }
 }
