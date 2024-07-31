@@ -28,13 +28,23 @@ export default function Home() {
   }, []);
 
   const fetchHighScores = async () => {
-    const { data, error } = await supabase
-      .from('high_scores')
-      .select('*')
-      .order('score', { ascending: false })
-      .limit(5);
-    if (data) setHighScores(data);
-    if (error) console.error('Error fetching high scores:', error);
+    console.log('Fetching high scores...');
+    try {
+      const { data, error } = await supabase
+        .from('high_scores')
+        .select('*')
+        .order('score', { ascending: false })
+        .limit(5);
+  
+      if (error) {
+        console.error('Error fetching high scores:', error);
+      } else {
+        console.log('High scores fetched:', data);
+        setHighScores(data);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching high scores:', err);
+    }
   };
 
   useEffect(() => {
@@ -155,7 +165,7 @@ export default function Home() {
         cancelAnimationFrame(animationFrameId);
       };
     }
-  }, [gameStarted, score]);
+  }, [gameStarted, score, endGame]); // Add endGame here
 
   const startGame = () => {
     if (playerName.trim() === '') {
@@ -175,11 +185,24 @@ export default function Home() {
 
   const endGame = async () => {
     setGameStarted(false);
-    const { data, error } = await supabase
-      .from('high_scores')
-      .insert({ name: playerName, score: score });
-    if (error) console.error('Error saving score:', error);
-    fetchHighScores();
+    console.log('Ending game. Final Score:', score);
+  
+    try {
+      const { data, error } = await supabase
+        .from('high_scores')
+        .insert({ name: playerName, score: score });
+  
+      if (error) {
+        console.error('Error saving score:', error);
+      } else {
+        console.log('Score saved successfully:', data);
+      }
+  
+      await fetchHighScores();
+    } catch (err) {
+      console.error('Unexpected error saving score:', err);
+    }
+  
     confetti();
     console.log('Game Ended. Final Score:', score);
   };
