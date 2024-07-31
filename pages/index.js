@@ -124,7 +124,7 @@ export default function Home() {
         coinsRef.current = coinsRef.current.map((c) => ({ ...c, x: c.x - gameSpeedRef.current })).filter((c) => c.x > -30);
 
         // Spawn new barriers and coins
-        if (Math.random() < 0.01 && barriersRef.current.length < 3) {
+        if (Math.random() < 0.01) {
           spawnBarrier();
         }
         if (Math.random() < 0.05 || coinsRef.current.length < 3) {
@@ -219,13 +219,10 @@ export default function Home() {
   const spawnBarrier = () => {
     const canvas = canvasRef.current;
     const difficulty = Math.min(gameTimeRef.current / 120000, 0.7); // Max difficulty after 2 minutes
-    const height = 30 + Math.random() * 90 * difficulty; // Height varies between 30 and 120 pixels
-    const y = Math.random() < 0.3 ? 
-      canvas.height - FLOOR_HEIGHT - height - Math.random() * 100 : // 30% chance for airborne barrier
-      canvas.height - FLOOR_HEIGHT - height; // 70% chance for ground barrier
+    const height = 60 + Math.random() * 60 * difficulty; // Height increases with difficulty
     barriersRef.current.push({
       x: canvas.width,
-      y: y,
+      y: canvas.height - FLOOR_HEIGHT - height,
       width: 30,
       height: height
     });
@@ -256,13 +253,11 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </Head>
 
-      <header className={styles.header}>
-        <h1 className={styles.title}>Garry Run</h1>
-      </header>
-
       <main className={styles.main}>
+        <h1 className={styles.title}>Garry Run</h1>
+
         {!gameStarted ? (
-          <div className={styles.startScreen}>
+          <div>
             <input
               type="text"
               value={playerName}
@@ -281,7 +276,7 @@ export default function Home() {
             className={styles.gameArea}
           >
             <canvas ref={canvasRef} width={800} height={400} />
-            <div className={styles.instructions}>Press Space to jump or touch the screen on mobile</div>
+            <div>Press Space to jump or touch the screen on mobile</div>
           </div>
         )}
 
