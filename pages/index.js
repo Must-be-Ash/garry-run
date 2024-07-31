@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Head from 'next/head';
+import NextImage from 'next/image';
 import styles from '../styles/Home.module.css';
 import confetti from 'canvas-confetti';
 import { supabase } from '../lib/supabase';
@@ -29,13 +30,18 @@ export default function Home() {
       .from('high_scores')
       .select('*')
       .order('score', { ascending: false })
-      .limit(5);
+      .limit(50);
     if (data) {
       console.log('High scores fetched:', data);
       setHighScores(data);
     }
     if (error) console.error('Error fetching high scores:', error);
   };
+
+  const formatTwitterHandle = (handle) => {
+    return handle.startsWith('@') ? handle.slice(1) : handle;
+  };
+
 
   useEffect(() => {
     fetchHighScores();
@@ -257,12 +263,19 @@ export default function Home() {
         <h1 className={styles.title}>Garry Run</h1>
 
         {!gameStarted ? (
-          <div>
+          <div className={styles.startContainer}>
+            <NextImage 
+              src="/garry.png" 
+              alt="Garry" 
+              width={200} 
+              height={200} 
+              className={styles.garryImage}
+            />
             <input
               type="text"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Enter your name"
+              placeholder="Enter your Twitter handle"
               className={styles.input}
             />
             <button onClick={startGame} className={styles.button}>
@@ -282,13 +295,21 @@ export default function Home() {
 
         <div className={styles.highScores}>
           <h2>High Scores</h2>
-          <ul>
-            {highScores.map((entry, index) => (
-              <li key={index}>
-                {entry.name}: {entry.score}
-              </li>
-            ))}
-          </ul>
+          <div className={styles.scoreList}>
+            <ul>
+              {highScores.map((entry, index) => (
+                <li key={index}>
+                  <a 
+                    href={`https://x.com/${formatTwitterHandle(entry.name)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {entry.name}
+                  </a>: {entry.score}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </main>
 
